@@ -42,7 +42,17 @@ let keys = {};
 let level = 1;
 let gameOver = false;
 
-// Initialize enemies, treasures, walls, and launcher
+let mouseX = 0;
+let mouseY = 0;
+
+// Track mouse movement for aiming bullets
+canvas.addEventListener("mousemove", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+  mouseY = e.clientY - rect.top;
+});
+
+// Initialize level elements
 function initLevel() {
   enemies = [];
   treasures = [];
@@ -73,9 +83,9 @@ function initLevel() {
 
   // Create walls
   walls = [
-    { x: 100, y: 100, width: 200, height: 20 }, // Horizontal wall
-    { x: 300, y: 300, width: 20, height: 150 }, // Vertical wall
-    { x: 500, y: 200, width: 100, height: 20 }, // Another horizontal wall
+    { x: 100, y: 100, width: 200, height: 20 },
+    { x: 300, y: 300, width: 20, height: 150 },
+    { x: 500, y: 200, width: 100, height: 20 },
   ];
 }
 
@@ -83,10 +93,10 @@ function initLevel() {
 document.addEventListener("keydown", (e) => {
   keys[e.key] = true;
   if (e.key === " ") {
-    attack(); // Attack with melee
+    attack(); // Melee attack
   }
   if (e.key === "f" && player.hasLauncher) {
-    shootBullet(); // Fire a bullet
+    shootBullet(); // Fire projectile
   }
 });
 document.addEventListener("keyup", (e) => (keys[e.key] = false));
@@ -108,10 +118,10 @@ function distance(obj1, obj2) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-// Attack function
+// Player attack (melee)
 function attack() {
   try {
-    attackSound.play(); // Play attack sound
+    attackSound.play();
   } catch (e) {
     console.warn("Attack sound playback failed.");
   }
@@ -120,7 +130,7 @@ function attack() {
     if (distance(player, enemy) < player.attackRange) {
       enemy.health -= 1;
       try {
-        hitSound.play(); // Play hit sound
+        hitSound.play();
       } catch (e) {
         console.warn("Hit sound playback failed.");
       }
@@ -131,11 +141,10 @@ function attack() {
     }
   });
 
-  // Attack boss
   if (boss.active && distance(player, boss) < player.attackRange) {
     boss.health -= 1;
     try {
-      hitSound.play(); // Play hit sound
+      hitSound.play();
     } catch (e) {
       console.warn("Hit sound playback failed.");
     }
@@ -149,16 +158,19 @@ function attack() {
 // Shoot a bullet
 function shootBullet() {
   const bulletSpeed = 8;
+  const angle = Math.atan2(
+    mouseY - (player.y + player.size / 2),
+    mouseX - (player.x + player.size / 2)
+  );
   bullets.push({
     x: player.x + player.size / 2 - 5,
     y: player.y + player.size / 2 - 5,
     size: 10,
     speed: bulletSpeed,
-    directionX: Math.cos(player.direction || 0),
-    directionY: Math.sin(player.direction || 0),
+    directionX: Math.cos(angle),
+    directionY: Math.sin(angle),
   });
 
-  // Play shoot sound
   try {
     shootSound.play();
   } catch (e) {
@@ -182,13 +194,13 @@ function gameLoop() {
 
 // Update logic
 function update() {
-  // Move player
+  // Player movement
   if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
   if (keys["ArrowDown"] && player.y < canvas.height - player.size) player.y += player.speed;
   if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
   if (keys["ArrowRight"] && player.x < canvas.width - player.size) player.x += player.speed;
 
-  // Wall collision detection for the player
+  // Wall collision for player
   walls.forEach((wall) => {
     if (
       player.x < wall.x + wall.width &&
@@ -203,7 +215,7 @@ function update() {
     }
   });
 
-  // Enemy logic
+  // Enemy movement and collision
   enemies.forEach((enemy) => {
     walls.forEach((wall) => {
       if (
@@ -212,18 +224,22 @@ function update() {
         enemy.y < wall.y + wall.height &&
         enemy.y + enemy.size > wall.y
       ) {
-        enemy.direction = (enemy.direction + Math.PI) % (2 * Math.PI); // Reverse direction on collision
+        enemy.direction = (enemy.direction + Math.PI) % (2 * Math.PI);
       }
     });
 
-    const angle =
-      Math.atan2(player.y - enemy.y, player.x - enemy.x) +
-      (Math.random() - 0.5) * 0.5; // Add random offset for less accuracy
-    enemy.x += Math.cos(angle) * enemy.speed;
-    enemy.y += Math.sin(angle) * enemy.speed;
+    if (enemy.x <= 0 || enemy.x + enemy.size >= canvas.width) {
+      enemy.direction = Math.PI - enemy.direction;
+    }
+    if (enemy.y <= 0 || enemy.y + enemy.size >= canvas.height) {
+      enemy.direction = -enemy.direction;
+    }
+
+    enemy.x += Math.cos(enemy.direction) * enemy.speed;
+    enemy.y += Math.sin(enemy.direction) * enemy.speed;
 
     if (collision(player, enemy)) {
-      player.health -= 0.5; // Reduced damage
+      player.health -= 0.5;
       if (player.health <= 0) {
         gameOver = true;
         try {
@@ -235,49 +251,7 @@ function update() {
     }
   });
 
-  // Treasure logic
-  treasures.forEach((treasure, index) => {
-    if (collision(player, treasure)) {
-      treasures.splice(index, 1);
-      player.score += 10;
-      try {
-        treasureSound.play();
-      } catch (e) {
-        console.warn("Treasure sound playback failed.");
-      }
-    }
-  });
-
-  // Pick up launcher
-  if (collision(player, launcher) && !launcher.pickedUp) {
-    launcher.pickedUp = true;
-    player.hasLauncher = true;
-  }
-
-  // Boss logic
-  if (treasures.length === 0 && !boss.active) {
-    boss.active = true;
-  }
-
-  if (boss.active) {
-    const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
-    boss.x += Math.cos(angle) * 2;
-    boss.y += Math.sin(angle) * 2;
-
-    if (collision(player, boss)) {
-      player.health -= 1; // Reduced boss damage
-      if (player.health <= 0) {
-        gameOver = true;
-        try {
-          gameOverSound.play();
-        } catch (e) {
-          console.warn("Game over sound playback failed.");
-        }
-      }
-    }
-  }
-
-  // Move bullets
+  // Bullets
   bullets.forEach((bullet, index) => {
     bullet.x += bullet.directionX * bullet.speed;
     bullet.y += bullet.directionY * bullet.speed;
@@ -293,7 +267,7 @@ function update() {
 
     enemies.forEach((enemy, enemyIndex) => {
       if (collision(bullet, enemy)) {
-        enemy.health -= 5; // Bullets deal 5 damage
+        enemy.health -= 5;
         bullets.splice(index, 1);
         if (enemy.health <= 0) {
           enemies.splice(enemyIndex, 1);
@@ -303,7 +277,7 @@ function update() {
     });
 
     if (boss.active && collision(bullet, boss)) {
-      boss.health -= 5; // Bullets deal 5 damage to the boss
+      boss.health -= 5;
       bullets.splice(index, 1);
       if (boss.health <= 0) {
         boss.active = false;
@@ -311,78 +285,76 @@ function update() {
       }
     }
   });
+
+  // Boss movement and collision
+  if (boss.active) {
+    const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+    boss.x += Math.cos(angle) * 2;
+    boss.y += Math.sin(angle) * 2;
+
+    if (collision(player, boss)) {
+      player.health -= 1;
+      if (player.health <= 0) {
+        gameOver = true;
+        try {
+          gameOverSound.play();
+        } catch (e) {
+          console.warn("Game over sound playback failed.");
+        }
+      }
+    }
+  }
 }
 
 // Draw everything
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw background
-  ctx.fillStyle = "#87CEEB"; // Light blue for sky
+  // Background
+  ctx.fillStyle = "#87CEEB";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw walls
+  // Walls
   ctx.fillStyle = "brown";
   walls.forEach((wall) => {
     ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
   });
 
-  // Draw player
+  // Player
   if (playerImage.complete && playerImage.naturalHeight !== 0) {
     ctx.drawImage(playerImage, player.x, player.y, player.size, player.size);
   }
 
-  // Draw launcher
-  if (!launcher.pickedUp && launcherImage.complete && launcherImage.naturalHeight !== 0) {
+  // Launcher
+  if (!launcher.pickedUp) {
     ctx.drawImage(launcherImage, launcher.x, launcher.y, launcher.size, launcher.size);
   }
 
-  // Draw enemies
+  // Enemies
   enemies.forEach((enemy) => {
-    if (enemyImage.complete && enemyImage.naturalHeight !== 0) {
-      ctx.drawImage(enemyImage, enemy.x, enemy.y, enemy.size, enemy.size);
-    }
-    ctx.fillStyle = "red";
-    ctx.fillText(`HP: ${enemy.health}`, enemy.x, enemy.y - 10);
+    ctx.drawImage(enemyImage, enemy.x, enemy.y, enemy.size, enemy.size);
   });
 
-  // Draw treasures
-  treasures.forEach((treasure) => {
-    if (treasureImage.complete && treasureImage.naturalHeight !== 0) {
-      ctx.drawImage(treasureImage, treasure.x, treasure.y, treasure.size, treasure.size);
-    }
-  });
-
-  // Draw bullets
+  // Bullets
   bullets.forEach((bullet) => {
-    if (bulletImage.complete && bulletImage.naturalHeight !== 0) {
-      ctx.drawImage(bulletImage, bullet.x, bullet.y, bullet.size, bullet.size);
-    } else {
-      ctx.fillStyle = "yellow";
-      ctx.fillRect(bullet.x, bullet.y, bullet.size, bullet.size);
-    }
+    ctx.fillStyle = "yellow";
+    ctx.fillRect(bullet.x, bullet.y, bullet.size, bullet.size);
   });
 
-  // Draw boss
-  if (boss.active && bossImage.complete && bossImage.naturalHeight !== 0) {
+  // Boss
+  if (boss.active) {
     ctx.drawImage(bossImage, boss.x, boss.y, boss.size, boss.size);
-    ctx.fillStyle = "red";
-    ctx.fillText(`Boss HP: ${boss.health}`, boss.x, boss.y - 10);
   }
 
-  // Draw UI
+  // UI
   document.getElementById("player-health").innerText = player.health;
   document.getElementById("score").innerText = player.score;
 }
 
-// Start game after interaction
+// Start the game
 document.getElementById("start-btn").addEventListener("click", () => {
-  // Hide start button and show canvas
   document.getElementById("start-btn").style.display = "none";
   document.getElementById("gameCanvas").style.display = "block";
-
-  // Start the game
   initLevel();
   gameLoop();
 });
-
