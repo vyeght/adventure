@@ -13,9 +13,10 @@ bossImage.src = "./assets/boss.png";
 const hitSound = new Audio("./assets/hit.wav");
 const gameOverSound = new Audio("./assets/gameover.wav");
 const treasureSound = new Audio("./assets/treasure.wav");
+const attackSound = new Audio("./assets/attack.wav"); // New attack sound
 
 // Game variables
-let player = { x: 50, y: 50, size: 40, health: 100, speed: 5, score: 0 };
+let player = { x: 50, y: 50, size: 40, health: 100, speed: 5, score: 0, attackRange: 50 };
 let enemies = [];
 let treasures = [];
 let boss = { x: 700, y: 500, size: 60, health: 20, active: false };
@@ -44,7 +45,12 @@ function initLevel() {
 }
 
 // Key listeners
-document.addEventListener("keydown", (e) => (keys[e.key] = true));
+document.addEventListener("keydown", (e) => {
+  keys[e.key] = true;
+  if (e.key === " ") {
+    attack(); // Call attack function on Space key press
+  }
+});
 document.addEventListener("keyup", (e) => (keys[e.key] = false));
 
 // Collision detection
@@ -55,6 +61,40 @@ function collision(obj1, obj2) {
     obj1.y < obj2.y + obj2.size &&
     obj1.y + obj1.size > obj2.y
   );
+}
+
+// Distance calculation
+function distance(obj1, obj2) {
+  const dx = obj1.x - obj2.x;
+  const dy = obj1.y - obj2.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Attack function
+function attack() {
+  attackSound.play();
+
+  // Attack enemies
+  enemies.forEach((enemy, index) => {
+    if (distance(player, enemy) < player.attackRange) {
+      enemy.health -= 1; // Reduce enemy health
+      hitSound.play();
+      if (enemy.health <= 0) {
+        enemies.splice(index, 1); // Remove defeated enemy
+        player.score += 10; // Add score for defeating an enemy
+      }
+    }
+  });
+
+  // Attack boss (if active)
+  if (boss.active && distance(player, boss) < player.attackRange) {
+    boss.health -= 1;
+    hitSound.play();
+    if (boss.health <= 0) {
+      boss.active = false; // Deactivate boss
+      player.score += 50; // Add score for defeating the boss
+    }
+  }
 }
 
 // Game loop
@@ -142,6 +182,10 @@ function draw() {
   // Draw enemies
   enemies.forEach((enemy) => {
     ctx.drawImage(enemyImage, enemy.x, enemy.y, enemy.size, enemy.size);
+
+    // Draw enemy health
+    ctx.fillStyle = "red";
+    ctx.fillText(`HP: ${enemy.health}`, enemy.x, enemy.y - 10);
   });
 
   // Draw treasures
@@ -153,7 +197,7 @@ function draw() {
   if (boss.active) {
     ctx.drawImage(bossImage, boss.x, boss.y, boss.size, boss.size);
     ctx.fillStyle = "red";
-    ctx.fillText(`Boss Health: ${boss.health}`, boss.x, boss.y - 10);
+    ctx.fillText(`Boss HP: ${boss.health}`, boss.x, boss.y - 10);
   }
 
   // UI
