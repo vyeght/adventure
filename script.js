@@ -110,13 +110,20 @@ function distance(obj1, obj2) {
 
 // Attack function
 function attack() {
-  attackSound.play();
+  try {
+    attackSound.play(); // Play attack sound
+  } catch (e) {
+    console.warn("Attack sound playback failed.");
+  }
 
-  // Attack enemies
   enemies.forEach((enemy, index) => {
     if (distance(player, enemy) < player.attackRange) {
       enemy.health -= 1;
-      hitSound.play();
+      try {
+        hitSound.play(); // Play hit sound
+      } catch (e) {
+        console.warn("Hit sound playback failed.");
+      }
       if (enemy.health <= 0) {
         enemies.splice(index, 1);
         player.score += 10;
@@ -127,7 +134,11 @@ function attack() {
   // Attack boss
   if (boss.active && distance(player, boss) < player.attackRange) {
     boss.health -= 1;
-    hitSound.play();
+    try {
+      hitSound.play(); // Play hit sound
+    } catch (e) {
+      console.warn("Hit sound playback failed.");
+    }
     if (boss.health <= 0) {
       boss.active = false;
       player.score += 50;
@@ -144,7 +155,11 @@ function shootBullet() {
     speed: 8,
     direction: Math.atan2(keys.mouseY - player.y, keys.mouseX - player.x),
   });
-  shootSound.play();
+  try {
+    shootSound.play(); // Play shooting sound
+  } catch (e) {
+    console.warn("Shoot sound playback failed.");
+  }
 }
 
 // Game loop
@@ -181,7 +196,11 @@ function update() {
       player.health -= 0.5; // Reduced damage
       if (player.health <= 0) {
         gameOver = true;
-        gameOverSound.play();
+        try {
+          gameOverSound.play(); // Play game over sound
+        } catch (e) {
+          console.warn("Game over sound playback failed.");
+        }
       }
     }
   });
@@ -191,7 +210,11 @@ function update() {
     if (collision(player, treasure)) {
       treasures.splice(index, 1);
       player.score += 10;
-      treasureSound.play();
+      try {
+        treasureSound.play(); // Play treasure sound
+      } catch (e) {
+        console.warn("Treasure sound playback failed.");
+      }
     }
   });
 
@@ -215,48 +238,14 @@ function update() {
       player.health -= 1; // Reduced boss damage
       if (player.health <= 0) {
         gameOver = true;
-        gameOverSound.play();
+        try {
+          gameOverSound.play(); // Play game over sound
+        } catch (e) {
+          console.warn("Game over sound playback failed.");
+        }
       }
     }
   }
-
-  // Bullet logic
-  bullets.forEach((bullet, index) => {
-    bullet.x += Math.cos(bullet.direction) * bullet.speed;
-    bullet.y += Math.sin(bullet.direction) * bullet.speed;
-
-    // Remove bullet if it leaves the canvas
-    if (
-      bullet.x < 0 ||
-      bullet.x > canvas.width ||
-      bullet.y < 0 ||
-      bullet.y > canvas.height
-    ) {
-      bullets.splice(index, 1);
-    }
-
-    // Bullet hits enemies
-    enemies.forEach((enemy, enemyIndex) => {
-      if (collision(bullet, enemy)) {
-        enemy.health -= 5;
-        bullets.splice(index, 1);
-        if (enemy.health <= 0) {
-          enemies.splice(enemyIndex, 1);
-          player.score += 10;
-        }
-      }
-    });
-
-    // Bullet hits boss
-    if (boss.active && collision(bullet, boss)) {
-      boss.health -= 5;
-      bullets.splice(index, 1);
-      if (boss.health <= 0) {
-        boss.active = false;
-        player.score += 50;
-      }
-    }
-  });
 }
 
 // Draw everything
@@ -293,11 +282,6 @@ function draw() {
     ctx.drawImage(treasureImage, treasure.x, treasure.y, treasure.size, treasure.size);
   });
 
-  // Draw bullets
-  bullets.forEach((bullet) => {
-    ctx.drawImage(bulletImage, bullet.x, bullet.y, bullet.size, bullet.size);
-  });
-
   // Draw boss
   if (boss.active) {
     ctx.drawImage(bossImage, boss.x, boss.y, boss.size, boss.size);
@@ -310,6 +294,13 @@ function draw() {
   document.getElementById("score").innerText = player.score;
 }
 
-// Start game
-initLevel();
-gameLoop();
+// Start game after interaction
+document.getElementById("start-btn").addEventListener("click", () => {
+  // Hide start button and show canvas
+  document.getElementById("start-btn").style.display = "none";
+  document.getElementById("gameCanvas").style.display = "block";
+
+  // Start the game
+  initLevel();
+  gameLoop();
+});
