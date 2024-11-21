@@ -73,9 +73,9 @@ function initLevel() {
 
   // Create walls
   walls = [
-    { x: 200, y: 200, width: 100, height: 20 },
-    { x: 400, y: 400, width: 20, height: 100 },
-    { x: 300, y: 100, width: 150, height: 20 },
+    { x: 100, y: 100, width: 200, height: 20 }, // Horizontal wall
+    { x: 300, y: 300, width: 20, height: 150 }, // Vertical wall
+    { x: 500, y: 200, width: 100, height: 20 }, // Another horizontal wall
   ];
 }
 
@@ -148,15 +148,19 @@ function attack() {
 
 // Shoot a bullet
 function shootBullet() {
+  const bulletSpeed = 8;
   bullets.push({
-    x: player.x + player.size / 2,
-    y: player.y + player.size / 2,
+    x: player.x + player.size / 2 - 5,
+    y: player.y + player.size / 2 - 5,
     size: 10,
-    speed: 8,
-    direction: Math.atan2(keys.mouseY - player.y, keys.mouseX - player.x),
+    speed: bulletSpeed,
+    directionX: Math.cos(player.direction || 0),
+    directionY: Math.sin(player.direction || 0),
   });
+
+  // Play shoot sound
   try {
-    shootSound.play(); // Play shooting sound
+    shootSound.play();
   } catch (e) {
     console.warn("Shoot sound playback failed.");
   }
@@ -184,8 +188,34 @@ function update() {
   if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
   if (keys["ArrowRight"] && player.x < canvas.width - player.size) player.x += player.speed;
 
+  // Wall collision detection for the player
+  walls.forEach((wall) => {
+    if (
+      player.x < wall.x + wall.width &&
+      player.x + player.size > wall.x &&
+      player.y < wall.y + wall.height &&
+      player.y + player.size > wall.y
+    ) {
+      if (keys["ArrowUp"]) player.y += player.speed;
+      if (keys["ArrowDown"]) player.y -= player.speed;
+      if (keys["ArrowLeft"]) player.x += player.speed;
+      if (keys["ArrowRight"]) player.x -= player.speed;
+    }
+  });
+
   // Enemy logic
   enemies.forEach((enemy) => {
+    walls.forEach((wall) => {
+      if (
+        enemy.x < wall.x + wall.width &&
+        enemy.x + enemy.size > wall.x &&
+        enemy.y < wall.y + wall.height &&
+        enemy.y + enemy.size > wall.y
+      ) {
+        enemy.direction = (enemy.direction + Math.PI) % (2 * Math.PI); // Reverse direction on collision
+      }
+    });
+
     const angle =
       Math.atan2(player.y - enemy.y, player.x - enemy.x) +
       (Math.random() - 0.5) * 0.5; // Add random offset for less accuracy
@@ -197,7 +227,7 @@ function update() {
       if (player.health <= 0) {
         gameOver = true;
         try {
-          gameOverSound.play(); // Play game over sound
+          gameOverSound.play();
         } catch (e) {
           console.warn("Game over sound playback failed.");
         }
@@ -211,7 +241,7 @@ function update() {
       treasures.splice(index, 1);
       player.score += 10;
       try {
-        treasureSound.play(); // Play treasure sound
+        treasureSound.play();
       } catch (e) {
         console.warn("Treasure sound playback failed.");
       }
@@ -239,13 +269,48 @@ function update() {
       if (player.health <= 0) {
         gameOver = true;
         try {
-          gameOverSound.play(); // Play game over sound
+          gameOverSound.play();
         } catch (e) {
           console.warn("Game over sound playback failed.");
         }
       }
     }
   }
+
+  // Move bullets
+  bullets.forEach((bullet, index) => {
+    bullet.x += bullet.directionX * bullet.speed;
+    bullet.y += bullet.directionY * bullet.speed;
+
+    if (
+      bullet.x < 0 ||
+      bullet.x > canvas.width ||
+      bullet.y < 0 ||
+      bullet.y > canvas.height
+    ) {
+      bullets.splice(index, 1);
+    }
+
+    enemies.forEach((enemy, enemyIndex) => {
+      if (collision(bullet, enemy)) {
+        enemy.health -= 5; // Bullets deal 5 damage
+        bullets.splice(index, 1);
+        if (enemy.health <= 0) {
+          enemies.splice(enemyIndex, 1);
+          player.score += 10;
+        }
+      }
+    });
+
+    if (boss.active && collision(bullet, boss)) {
+      boss.health -= 5; // Bullets deal 5 damage to the boss
+      bullets.splice(index, 1);
+      if (boss.health <= 0) {
+        boss.active = false;
+        player.score += 50;
+      }
+    }
+  });
 }
 
 // Draw everything
@@ -263,27 +328,43 @@ function draw() {
   });
 
   // Draw player
-  ctx.drawImage(playerImage, player.x, player.y, player.size, player.size);
+  if (playerImage.complete && playerImage.naturalHeight !== 0) {
+    ctx.drawImage(playerImage, player.x, player.y, player.size, player.size);
+  }
 
   // Draw launcher
-  if (!launcher.pickedUp) {
+  if (!launcher.pickedUp && launcherImage.complete && launcherImage.naturalHeight !== 0) {
     ctx.drawImage(launcherImage, launcher.x, launcher.y, launcher.size, launcher.size);
   }
 
   // Draw enemies
   enemies.forEach((enemy) => {
-    ctx.drawImage(enemyImage, enemy.x, enemy.y, enemy.size, enemy.size);
+    if (enemyImage.complete && enemyImage.naturalHeight !== 0) {
+      ctx.drawImage(enemyImage, enemy.x, enemy.y, enemy.size, enemy.size);
+    }
     ctx.fillStyle = "red";
     ctx.fillText(`HP: ${enemy.health}`, enemy.x, enemy.y - 10);
   });
 
   // Draw treasures
   treasures.forEach((treasure) => {
-    ctx.drawImage(treasureImage, treasure.x, treasure.y, treasure.size, treasure.size);
+    if (treasureImage.complete && treasureImage.naturalHeight !== 0) {
+      ctx.drawImage(treasureImage, treasure.x, treasure.y, treasure.size, treasure.size);
+    }
+  });
+
+  // Draw bullets
+  bullets.forEach((bullet) => {
+    if (bulletImage.complete && bulletImage.naturalHeight !== 0) {
+      ctx.drawImage(bulletImage, bullet.x, bullet.y, bullet.size, bullet.size);
+    } else {
+      ctx.fillStyle = "yellow";
+      ctx.fillRect(bullet.x, bullet.y, bullet.size, bullet.size);
+    }
   });
 
   // Draw boss
-  if (boss.active) {
+  if (boss.active && bossImage.complete && bossImage.naturalHeight !== 0) {
     ctx.drawImage(bossImage, boss.x, boss.y, boss.size, boss.size);
     ctx.fillStyle = "red";
     ctx.fillText(`Boss HP: ${boss.health}`, boss.x, boss.y - 10);
@@ -304,3 +385,4 @@ document.getElementById("start-btn").addEventListener("click", () => {
   initLevel();
   gameLoop();
 });
+
