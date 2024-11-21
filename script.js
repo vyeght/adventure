@@ -164,9 +164,3 @@ function draw() {
 // Start game
 initLevel();
 gameLoop();
-
-
-h1 {
-  font-size: 24px;
-  margin: 0 0 10px 0;
-}
