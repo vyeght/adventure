@@ -7,12 +7,20 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Game UI -->
   <div id="ui">
     <h1>Adventure Game</h1>
     <p>Health: <span id="player-health">100</span></p>
     <p>Score: <span id="score">0</span></p>
   </div>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <!-- Start Button -->
+  <button id="start-btn">Start Game</button>
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas" width="800" height="600" style="display: none;"></canvas>
+
+  <!-- Link to JavaScript -->
   <script src="script.js"></script>
 </body>
 </html>
