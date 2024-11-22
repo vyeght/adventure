@@ -21,7 +21,6 @@ const treasureSound = new Audio("./assets/treasure.wav");
 const attackSound = new Audio("./assets/attack.wav");
 const shootSound = new Audio("./assets/shoot.wav");
 
-// Game variables
 let player = {
   x: 50,
   y: 50,
@@ -41,6 +40,7 @@ let launcher = { x: 400, y: 300, size: 30, pickedUp: false };
 let keys = {};
 let level = 1;
 let gameOver = false;
+let bossDefeated = false;
 
 let mouseX = 0;
 let mouseY = 0;
@@ -59,6 +59,8 @@ function initLevel() {
   walls = [];
   bullets = [];
   launcher.pickedUp = false;
+  boss.active = false;
+  boss.health = 20;
 
   // Create enemies
   for (let i = 0; i < level * 3; i++) {
@@ -75,8 +77,8 @@ function initLevel() {
   // Create treasures
   for (let i = 0; i < level; i++) {
     treasures.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
+      x: Math.random() * (canvas.width - 50) + 25, // Ensure treasures spawn within bounds
+      y: Math.random() * (canvas.height - 50) + 25,
       size: 30,
     });
   }
@@ -149,7 +151,7 @@ function attack() {
       console.warn("Hit sound playback failed.");
     }
     if (boss.health <= 0) {
-      boss.active = false;
+      bossDefeated = true;
       player.score += 50;
     }
   }
@@ -187,6 +189,13 @@ function gameLoop() {
     return;
   }
 
+  if (bossDefeated) {
+    ctx.fillStyle = "white";
+    ctx.font = "30px Arial";
+    ctx.fillText("Congratulations! You defeated the boss!", 150, 300);
+    return;
+  }
+
   update();
   draw();
   requestAnimationFrame(gameLoop);
@@ -220,6 +229,24 @@ function update() {
     launcher.pickedUp = true;
     player.hasLauncher = true; // Player now has the launcher
     console.log("Launcher picked up!");
+  }
+
+  // Treasure collection
+  treasures.forEach((treasure, index) => {
+    if (collision(player, treasure)) {
+      treasures.splice(index, 1); // Remove treasure
+      player.score += 10;
+      try {
+        treasureSound.play();
+      } catch (e) {
+        console.warn("Treasure sound playback failed.");
+      }
+    }
+  });
+
+  // Activate boss when all treasures are collected
+  if (treasures.length === 0 && !boss.active) {
+    boss.active = true;
   }
 
   // Enemy movement and collision
@@ -287,7 +314,7 @@ function update() {
       boss.health -= 5;
       bullets.splice(index, 1);
       if (boss.health <= 0) {
-        boss.active = false;
+        bossDefeated = true;
         player.score += 50;
       }
     }
@@ -336,6 +363,11 @@ function draw() {
   if (!launcher.pickedUp) {
     ctx.drawImage(launcherImage, launcher.x, launcher.y, launcher.size, launcher.size);
   }
+
+  // Treasures
+  treasures.forEach((treasure) => {
+    ctx.drawImage(treasureImage, treasure.x, treasure.y, treasure.size, treasure.size);
+  });
 
   // Enemies
   enemies.forEach((enemy) => {
