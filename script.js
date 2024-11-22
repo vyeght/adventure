@@ -215,6 +215,13 @@ function update() {
     }
   });
 
+  // Launcher pickup
+  if (collision(player, launcher) && !launcher.pickedUp) {
+    launcher.pickedUp = true;
+    player.hasLauncher = true; // Player now has the launcher
+    console.log("Launcher picked up!");
+  }
+
   // Enemy movement and collision
   enemies.forEach((enemy) => {
     walls.forEach((wall) => {
@@ -224,12 +231,12 @@ function update() {
         enemy.y < wall.y + wall.height &&
         enemy.y + enemy.size > wall.y
       ) {
-        enemy.direction = (enemy.direction + Math.PI) % (2 * Math.PI);
+        enemy.direction = (enemy.direction + Math.PI) % (2 * Math.PI); // Bounce off walls
       }
     });
 
     if (enemy.x <= 0 || enemy.x + enemy.size >= canvas.width) {
-      enemy.direction = Math.PI - enemy.direction;
+      enemy.direction = Math.PI - enemy.direction; // Bounce off edges
     }
     if (enemy.y <= 0 || enemy.y + enemy.size >= canvas.height) {
       enemy.direction = -enemy.direction;
@@ -239,7 +246,7 @@ function update() {
     enemy.y += Math.sin(enemy.direction) * enemy.speed;
 
     if (collision(player, enemy)) {
-      player.health -= 0.5;
+      player.health -= 1;
       if (player.health <= 0) {
         gameOver = true;
         try {
