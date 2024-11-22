@@ -251,6 +251,19 @@ function update() {
 
   // Enemy movement and collision
   enemies.forEach((enemy) => {
+    const distanceToPlayer = distance(player, enemy);
+
+    // If player is in range, enemy follows the player
+    if (distanceToPlayer < 200) {
+      const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+      enemy.x += Math.cos(angle) * enemy.speed;
+      enemy.y += Math.sin(angle) * enemy.speed;
+    } else {
+      // Otherwise, enemy moves randomly
+      enemy.x += Math.cos(enemy.direction) * enemy.speed;
+      enemy.y += Math.sin(enemy.direction) * enemy.speed;
+    }
+
     walls.forEach((wall) => {
       if (
         enemy.x < wall.x + wall.width &&
@@ -268,9 +281,6 @@ function update() {
     if (enemy.y <= 0 || enemy.y + enemy.size >= canvas.height) {
       enemy.direction = -enemy.direction;
     }
-
-    enemy.x += Math.cos(enemy.direction) * enemy.speed;
-    enemy.y += Math.sin(enemy.direction) * enemy.speed;
 
     if (collision(player, enemy)) {
       player.health -= 1;
@@ -344,11 +354,11 @@ function update() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Background
-  ctx.fillStyle = "#87CEEB";
+  // Background (darker shade of brown)
+  ctx.fillStyle = "#654321"; // Dark brown
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Walls
+  // Walls (light brown)
   ctx.fillStyle = "brown";
   walls.forEach((wall) => {
     ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
