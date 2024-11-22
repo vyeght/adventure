@@ -36,7 +36,7 @@ let treasures = [];
 let walls = [];
 let bullets = [];
 let boss = { x: 700, y: 500, size: 60, health: 20, active: false };
-let launcher = { x: 400, y: 300, size: 30, pickedUp: false };
+let launcher = { x: 400, y: 300, size: 30, pickedUp: false, active: false };
 let keys = {};
 let level = 1;
 let gameOver = false;
@@ -58,6 +58,7 @@ function initLevel() {
   treasures = [];
   walls = [];
   bullets = [];
+  launcher.active = false;
   launcher.pickedUp = false;
   boss.active = false;
   boss.health = 20;
@@ -224,11 +225,16 @@ function update() {
     }
   });
 
-  // Launcher pickup
-  if (collision(player, launcher) && !launcher.pickedUp) {
+  // Launcher pickup (if active)
+  if (launcher.active && collision(player, launcher)) {
     launcher.pickedUp = true;
     player.hasLauncher = true; // Player now has the launcher
     console.log("Launcher picked up!");
+  }
+
+  // Activate launcher if all enemies are defeated
+  if (enemies.length === 0 && !launcher.active) {
+    launcher.active = true;
   }
 
   // Treasure collection
@@ -354,8 +360,8 @@ function update() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Background (darker shade of brown)
-  ctx.fillStyle = "#654321"; // Dark brown
+  // Background (darker brown)
+  ctx.fillStyle = "#3b2f2f"; // Dark brown background
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Walls (light brown)
@@ -370,7 +376,7 @@ function draw() {
   }
 
   // Launcher
-  if (!launcher.pickedUp) {
+  if (launcher.active && !launcher.pickedUp) {
     ctx.drawImage(launcherImage, launcher.x, launcher.y, launcher.size, launcher.size);
   }
 
